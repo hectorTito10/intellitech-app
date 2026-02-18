@@ -1,0 +1,32 @@
+[debug] [2026-02-18T20:27:41.386Z] ----------------------------------------------------------------------
+[debug] [2026-02-18T20:27:41.388Z] Command:       /usr/local/bin/node /usr/local/bin/firebase init
+[debug] [2026-02-18T20:27:41.388Z] CLI Version:   15.6.0
+[debug] [2026-02-18T20:27:41.388Z] Platform:      darwin
+[debug] [2026-02-18T20:27:41.388Z] Node Version:  v24.13.1
+[debug] [2026-02-18T20:27:41.388Z] Time:          Wed Feb 18 2026 17:27:41 GMT-0300 (Chile Summer Time)
+[debug] [2026-02-18T20:27:41.388Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/hectorpacheco/Downloads/intellitech-app
+
+[debug] [2026-02-18T20:28:32.562Z] ----------------------------------------------------------------------
+[debug] [2026-02-18T20:28:32.564Z] Command:       /usr/local/bin/node /usr/local/bin/firebase login --reauth
+[debug] [2026-02-18T20:28:32.564Z] CLI Version:   15.6.0
+[debug] [2026-02-18T20:28:32.564Z] Platform:      darwin
+[debug] [2026-02-18T20:28:32.564Z] Node Version:  v24.13.1
+[debug] [2026-02-18T20:28:32.564Z] Time:          Wed Feb 18 2026 17:28:32 GMT-0300 (Chile Summer Time)
+[debug] [2026-02-18T20:28:32.564Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+[info] Visit this URL on this device to log in:
+[info] https://accounts.google.com/o/oauth2/auth?client_id=563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com&scope=email%20openid%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloudplatformprojects.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Ffirebase%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&response_type=code&state=628904682&redirect_uri=http%3A%2F%2Flocalhost%3A9005
+[info] 
+[info] Waiting for authentication...
