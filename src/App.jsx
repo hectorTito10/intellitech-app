@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "react-datepicker/dist/react-datepicker.css";
+import { useMemo } from "react";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -18,14 +20,13 @@ import {
   getDoc,
   updateDoc,
 } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyAbKTQTr5FyPTgXHfAocz4Newi1VFk1y8o",
   authDomain: "intellitech-app.firebaseapp.com",
   projectId: "intellitech-app",
-  storageBucket: "intellitech-app.firebasestorage.app",
+  storageBucket: "intellitech-app.appspot.com",
   messagingSenderId: "835740887277",
   appId: "1:835740887277:web:789a28ec48f96cb6cd84e4",
 };
@@ -33,9 +34,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
+const CLOUD_NAME = "dhv7uncze";
+const UPLOAD_PRESET = "intellitech_unsigned";
 
 export default function App() {
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [filtroNombre, setFiltroNombre] = useState("");
+  const [notificacion, setNotificacion] = useState(null);
   const [fechaIngreso, setFechaIngreso] = useState("");
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -54,6 +60,10 @@ export default function App() {
 
   const [usuarioLiquidacion, setUsuarioLiquidacion] = useState("");
   const [fileToUpload, setFileToUpload] = useState(null);
+  const [showLiqModal, setShowLiqModal] = useState(false);
+
+  const abrirLiquidaciones = () => setShowLiqModal(true);
+  const cerrarLiquidaciones = () => setShowLiqModal(false);
 
   // ===== AUTH STATE =====
   useEffect(() => {
@@ -70,6 +80,20 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  const abrirPdfEnModal = (url) => {
+    if (!url) return;
+
+    const inlineUrl = url + "?fl_attachment=false";
+
+    setPdfPreviewUrl(inlineUrl);
+    setShowPdfModal(true);
+  };
+
+  const cerrarPdf = () => {
+    setShowPdfModal(false);
+    setPdfPreviewUrl("");
+  };
+
   const cargarDatos = async (uid) => {
     const snap = await getDoc(doc(db, "usuarios", uid));
     if (snap.exists()) setUserData({ id: uid, ...snap.data() });
@@ -84,6 +108,17 @@ export default function App() {
     const snap = await getDocs(collection(db, "vacaciones"));
     setVacaciones(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   };
+  const diasTotales = useMemo(() => {
+    if (!fechaInicio || !fechaFin) return 0;
+
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+
+    if (fin < inicio) return -1;
+
+    const diferencia = fin - inicio;
+    return Math.ceil(diferencia / (1000 * 60 * 60 * 24)) + 1;
+  }, [fechaInicio, fechaFin]);
 
   const cargarLiquidaciones = async () => {
     const snap = await getDocs(collection(db, "liquidaciones"));
@@ -120,6 +155,25 @@ export default function App() {
     }
     return count;
   };
+
+  const vacacionesVisibles = vacaciones
+    .filter((v) => !v.archivado)
+    .filter((v) => userData?.rol === "admin" || v.userId === user?.uid)
+    .filter((v) =>
+      (v?.nombre || "")
+        .toLowerCase()
+        .includes((filtroNombre || "").toLowerCase()),
+    );
+
+  const countPendientes = vacacionesVisibles.filter(
+    (v) => v.estado === "Pendiente",
+  ).length;
+  const countAprobadas = vacacionesVisibles.filter(
+    (v) => v.estado === "Aprobado",
+  ).length;
+  const countRechazadas = vacacionesVisibles.filter(
+    (v) => v.estado === "Rechazado",
+  ).length;
 
   // ===== LOGIN =====
   const login = async () => {
@@ -172,25 +226,56 @@ export default function App() {
   };
 
   // ===== VACACIONES =====
+
   const solicitarVacaciones = async () => {
-    if (!fechaInicio || !fechaFin) return alert("Selecciona fechas válidas");
+    if (!fechaInicio || !fechaFin) {
+      setNotificacion({
+        tipo: "error",
+        mensaje: "Selecciona fechas válidas",
+      });
+      return;
+    }
 
     const dias = diasHabiles(fechaInicio, fechaFin);
 
-    if (dias > diasDisponibles) return alert("No tienes suficientes días");
+    if (dias > diasDisponibles) {
+      setNotificacion({
+        tipo: "error",
+        mensaje: "No tienes suficientes días disponibles",
+      });
+      return;
+    }
 
-    await addDoc(collection(db, "vacaciones"), {
-      userId: user.uid,
-      nombre: userData.nombre,
-      inicio: fechaInicio,
-      fin: fechaFin,
-      dias,
-      estado: "Pendiente",
-    });
+    try {
+      await addDoc(collection(db, "vacaciones"), {
+        userId: user.uid,
+        nombre: userData?.nombre || "",
+        inicio: fechaInicio,
+        fin: fechaFin,
+        dias,
+        estado: "Pendiente",
+        archivado: false, // ✅
+        fechaSolicitud: new Date(),
+      });
 
-    setFechaInicio("");
-    setFechaFin("");
-    cargarVacaciones();
+      setFechaInicio("");
+      setFechaFin("");
+      cargarVacaciones();
+
+      setNotificacion({
+        tipo: "success",
+        mensaje: "Solicitud enviada correctamente",
+      });
+    } catch (error) {
+      setNotificacion({
+        tipo: "error",
+        mensaje: "Error al enviar la solicitud",
+      });
+    }
+
+    setTimeout(() => {
+      setNotificacion(null);
+    }, 3000);
   };
 
   const aprobar = async (v) => {
@@ -231,26 +316,65 @@ export default function App() {
 
   // ===== SUBIR LIQUIDACIÓN =====
   const subirLiquidacion = async () => {
-    if (!usuarioLiquidacion) return alert("Selecciona usuario");
-    if (!fileToUpload) return alert("Selecciona PDF");
+    try {
+      if (!usuarioLiquidacion) return alert("Selecciona usuario");
+      if (!fileToUpload) return alert("Selecciona PDF");
+      if (!fileToUpload.name.toLowerCase().endsWith(".pdf"))
+        return alert("Solo archivos PDF");
 
-    const fileRef = ref(
-      storage,
-      `liquidaciones/${usuarioLiquidacion}/${Date.now()}-${fileToUpload.name}`
-    );
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+      formData.append("upload_preset", UPLOAD_PRESET);
+      formData.append("folder", `liquidaciones/${usuarioLiquidacion}`);
 
-    await uploadBytes(fileRef, fileToUpload);
-    const url = await getDownloadURL(fileRef);
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
-    await addDoc(collection(db, "liquidaciones"), {
-      userId: usuarioLiquidacion,
-      nombreArchivo: fileToUpload.name,
-      url,
-      fecha: new Date(),
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Cloudinary error:", data);
+        return alert("Error al subir PDF a Cloudinary");
+      }
+
+      const url = data.secure_url;
+
+      const downloadUrl = url.replace("/upload/", "/upload/fl_attachment/");
+
+      await addDoc(collection(db, "liquidaciones"), {
+        userId: usuarioLiquidacion,
+        nombreArchivo: fileToUpload.name,
+        url,
+        downloadUrl,
+        fecha: new Date(),
+      });
+
+      alert("Liquidación subida correctamente ✅");
+
+      setFileToUpload(null);
+      setUsuarioLiquidacion("");
+      cargarLiquidaciones();
+    } catch (error) {
+      console.error(error);
+      alert("Error inesperado: " + error.message);
+    }
+  };
+
+  const archivarVacacion = async (v) => {
+    const confirmar = window.confirm(`¿Archivar la solicitud de ${v.nombre}?`);
+
+    if (!confirmar) return;
+
+    await updateDoc(doc(db, "vacaciones", v.id), {
+      archivado: true,
     });
 
-    alert("Liquidación subida");
-    cargarLiquidaciones();
+    cargarVacaciones();
   };
 
   if (loading) return <div className="text-center mt-5">Cargando...</div>;
@@ -307,87 +431,113 @@ export default function App() {
 
         {/* Solicitar Vacaciones */}
         <div className="col-md-4">
-          <div className="card p-3 shadow">
-            <h5>Solicitar Vacaciones</h5>
+          <div className="card shadow-sm border-0 p-4">
+            <h5 className="mb-3 fw-bold text-secondary">
+              Solicitar Vacaciones
+            </h5>
 
-            <input
-              type="date"
-              className="form-control mb-2"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-            />
+            <div className="mb-3">
+              <label className="form-label small text-muted">Desde</label>
+              <input
+                type="date"
+                className="form-control"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+            </div>
 
-            <input
-              type="date"
-              className="form-control mb-2"
-              value={fechaFin}
-              onChange={(e) => setFechaFin(e.target.value)}
-            />
+            <div className="mb-3">
+              <label className="form-label small text-muted">Hasta</label>
+              <input
+                type="date"
+                className="form-control"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+              />
+            </div>
 
+            {/* Resultado dinámico */}
+            {fechaInicio && fechaFin && (
+              <div className="mb-3">
+                {diasTotales === -1 ? (
+                  <div className="alert alert-danger py-2 mb-0">
+                    La fecha final no puede ser menor que la inicial.
+                  </div>
+                ) : (
+                  <div className="bg-light rounded-3 p-3 text-center border">
+                    <span className="text-muted small">Total solicitado</span>
+                    <div className="fs-5 fw-bold text-primary">
+                      {diasTotales} día{diasTotales > 1 && "s"}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 🔔 NOTIFICACIÓN FUERA DEL LAYOUT */}
+            {notificacion && (
+              <div
+                className={`toast-custom ${
+                  notificacion.tipo === "success"
+                    ? "toast-success"
+                    : "toast-error"
+                }`}
+              >
+                {notificacion.mensaje}
+              </div>
+            )}
             <button
-              className="btn btn-primary w-100"
+              className="btn btn-primary w-100 py-2 fw-semibold"
               onClick={solicitarVacaciones}
+              disabled={diasTotales <= 0}
             >
               Solicitar
             </button>
           </div>
         </div>
+
         {userData?.rol === "admin" && (
           <div className="col-12">
-            <div className="card shadow p-4">
-              <h5 className="mb-3">Crear Nuevo Usuario</h5>
+            <div className="card shadow-sm p-4 border-0">
+              <h5 className="mb-4 fw-bold text-secondary">
+                Crear Nuevo Usuario
+              </h5>
 
-              <div className="row">
+              <div className="row g-3">
                 <div className="col-md-3">
+                  <label className="form-label small text-muted">Nombre</label>
                   <input
-                    className="form-control mb-2"
-                    placeholder="Nombre"
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                  />
-                </div>
-
-                <div className="col-md-2">
-                  <input
-                    className="form-control mb-2"
-                    placeholder="Cargo"
-                    value={cargo}
-                    onChange={(e) => setCargo(e.target.value)}
+                    type="text"
+                    className="form-control"
+                    placeholder="Ingrese nombre"
                   />
                 </div>
 
                 <div className="col-md-3">
-                  <input
-                    className="form-control mb-2"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <label className="form-label small text-muted">Email</label>
+                  <input type="email" className="form-control" />
                 </div>
 
-                <div className="col-md-2">
-                  <input
-                    type="password"
-                    className="form-control mb-2"
-                    placeholder="Contraseña"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                <div className="col-md-3">
+                  <label className="form-label small text-muted">
+                    Contraseña
+                  </label>
+                  <input type="password" className="form-control" />
                 </div>
 
-                <div className="col-md-2">
-                  <input
-                    type="date"
-                    className="form-control mb-2"
-                    value={fechaIngreso}
-                    onChange={(e) => setFechaIngreso(e.target.value)}
-                  />
+                <div className="col-md-3">
+                  <label className="form-label small text-muted">
+                    Fecha de ingreso
+                  </label>
+                  <input type="date" className="form-control" />
+                </div>
+
+                <div className="col-12 mt-3">
+                  <button className="btn btn-success w-100 py-2 fw-semibold">
+                    Crear Usuario
+                  </button>
                 </div>
               </div>
-
-              <button className="btn btn-success mt-2" onClick={register}>
-                Crear Usuario
-              </button>
             </div>
           </div>
         )}
@@ -432,24 +582,80 @@ export default function App() {
         <div className="col-12">
           <div className="card shadow p-3">
             <h5 className="mb-3">Solicitudes de Vacaciones</h5>
+            <div className="row g-2 mb-3">
+              <div className="col-md-4">
+                <div className="p-3 border rounded-3 bg-light">
+                  <div className="text-muted small">Pendientes</div>
+                  <div className="fs-5 fw-bold text-warning">
+                    {countPendientes}
+                  </div>
+                </div>
+              </div>
 
+              <div className="col-md-4">
+                <div className="p-3 border rounded-3 bg-light">
+                  <div className="text-muted small">Aprobadas</div>
+                  <div className="fs-5 fw-bold text-success">
+                    {countAprobadas}
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-md-4">
+                <div className="p-3 border rounded-3 bg-light">
+                  <div className="text-muted small">Rechazadas</div>
+                  <div className="fs-5 fw-bold text-danger">
+                    {countRechazadas}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* 👇 CONTADOR AQUÍ */}
+            <p className="text-muted small mb-3">
+              Mostrando{" "}
+              {
+                vacacionesVisibles.map(
+                  (v) =>
+                    !v.archivado &&
+                    (userData?.rol === "admin" || v.userId === user?.uid),
+                ).length
+              }{" "}
+              solicitudes activas
+            </p>
+            <div className="input-group mb-3">
+              <span className="input-group-text bg-white">🔍</span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar empleado..."
+                value={filtroNombre}
+                onChange={(e) => setFiltroNombre(e.target.value)}
+              />
+            </div>
             <div className="table-responsive">
               <table className="table table-bordered table-hover align-middle">
                 <thead className="table-light">
                   <tr>
-                    <th>Empleado</th>
-                    <th>Inicio</th>
-                    <th>Fin</th>
-                    <th>Días</th>
-                    <th>Estado</th>
+                    <th>Nombre empleado</th>
+                    <th>Inicio de vacaciones</th>
+                    <th>Fin de vacaciones</th>
+                    <th>Días solicitados</th>
+                    <th>Estado de solicitud</th>
                     {userData?.rol === "admin" && <th>Acciones</th>}
                   </tr>
                 </thead>
 
                 <tbody>
                   {vacaciones
+                    .filter((v) => !v.archivado)
                     .filter(
-                      (v) => userData?.rol === "admin" || v.userId === user?.uid
+                      (v) =>
+                        userData?.rol === "admin" || v.userId === user?.uid,
+                    )
+                    .filter((v) =>
+                      (v?.nombre || "")
+                        .toLowerCase()
+                        .includes((filtroNombre || "").toLowerCase()),
                     )
                     .map((v) => (
                       <tr key={v.id}>
@@ -464,8 +670,8 @@ export default function App() {
                               v.estado === "Aprobado"
                                 ? "bg-success"
                                 : v.estado === "Rechazado"
-                                ? "bg-danger"
-                                : "bg-warning text-dark"
+                                  ? "bg-danger"
+                                  : "bg-warning text-dark"
                             }`}
                           >
                             {v.estado}
@@ -484,12 +690,21 @@ export default function App() {
                                 </button>
 
                                 <button
-                                  className="btn btn-sm btn-danger"
+                                  className="btn btn-sm btn-danger me-2"
                                   onClick={() => rechazar(v)}
                                 >
                                   Rechazar
                                 </button>
                               </>
+                            )}
+
+                            {v.estado !== "Pendiente" && !v.archivado && (
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => archivarVacacion(v)}
+                              >
+                                Quitar de la lista
+                              </button>
                             )}
                           </td>
                         )}

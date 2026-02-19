@@ -121,3 +121,72 @@ button {
 button:hover {
   opacity: 0.9;
 }
+
+.card {
+  border-radius: 15px;
+}
+
+.form-control {
+  border-radius: 10px;
+}
+
+.btn-primary {
+  border-radius: 10px;
+}
+
+.card {
+  border-radius: 16px;
+}
+
+.bg-light {
+  background-color: #f8fafc !important;
+}
+
+.btn-primary {
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.form-control {
+  border-radius: 10px;
+}
+
+.toast-custom {
+  position: fixed !important;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.toast-custom {
+  position: fixed !important;
+  top: 20px;
+  right: 20px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 500;
+  z-index: 9999;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  color: white !important;
+  animation: slideIn 0.3s ease;
+}
+
+/* Forzamos colores */
+.toast-success {
+  background-color: #16a34a !important;
+}
+
+.toast-error {
+  background-color: #dc2626 !important;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
