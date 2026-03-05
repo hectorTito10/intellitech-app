@@ -1,18 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Topbar from "./components/Topbar";
+import MenuOffcanvas from "./components/MenuOffcanvas";
 
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Usuarios from "./pages/Usuarios";
-import Vacaciones from "./pages/Vacaciones";
-import Liquidaciones from "./pages/Liquidaciones";
-import Reportes from "./pages/Reportes";
-import Settings from "./pages/Settings";
-import MenuOffcanvas from "./components/MenuOffcanvas";
+
+// ✅ Lazy load pages (code-splitting)
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Usuarios = lazy(() => import("./pages/Usuarios"));
+const Vacaciones = lazy(() => import("./pages/Vacaciones"));
+const Liquidaciones = lazy(() => import("./pages/Liquidaciones"));
+const Reportes = lazy(() => import("./pages/Reportes"));
+const Settings = lazy(() => import("./pages/Settings"));
+// Si ya creaste Perfil, descomenta:
+// const Perfil = lazy(() => import("./pages/Perfil"));
 
 function Shell({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,9 +30,17 @@ function Shell({ children }) {
         style={{ minHeight: "100vh", background: "#f6f7f9" }}
       >
         <Topbar onOpenMenu={() => setMenuOpen(true)} />
-        {children}
+        <div className="p-0">{children}</div>
       </div>
     </div>
+  );
+}
+
+function Page({ children }) {
+  return (
+    <Suspense fallback={<div className="p-4">Cargando...</div>}>
+      {children}
+    </Suspense>
   );
 }
 
@@ -44,7 +56,9 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Shell>
-                  <Dashboard />
+                  <Page>
+                    <Dashboard />
+                  </Page>
                 </Shell>
               </ProtectedRoute>
             }
@@ -55,7 +69,9 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Shell>
-                  <Usuarios />
+                  <Page>
+                    <Usuarios />
+                  </Page>
                 </Shell>
               </ProtectedRoute>
             }
@@ -66,7 +82,9 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Shell>
-                  <Vacaciones />
+                  <Page>
+                    <Vacaciones />
+                  </Page>
                 </Shell>
               </ProtectedRoute>
             }
@@ -77,33 +95,28 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Shell>
-                  <Liquidaciones />
+                  <Page>
+                    <Liquidaciones />
+                  </Page>
                 </Shell>
               </ProtectedRoute>
             }
           />
 
+          {/* Si agregas Perfil:
           <Route
-            path="/reportes"
+            path="/perfil"
             element={
               <ProtectedRoute>
                 <Shell>
-                  <Reportes />
+                  <Page>
+                    <Perfil />
+                  </Page>
                 </Shell>
               </ProtectedRoute>
             }
           />
-
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Shell>
-                  <Settings />
-                </Shell>
-              </ProtectedRoute>
-            }
-          />
+          */}
         </Routes>
       </BrowserRouter>
     </AuthProvider>
