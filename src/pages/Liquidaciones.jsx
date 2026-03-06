@@ -5,6 +5,8 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -14,7 +16,7 @@ const UPLOAD_PRESET = "intellitech_unsigned";
 
 export default function Liquidaciones() {
   const { user, userData } = useAuth();
-  const isAdmin = userData?.rol === "admin";
+  const isAdmin = userData?.rol === "admin" || userData?.rol === "superadmin";
 
   const [usuarios, setUsuarios] = useState([]);
   const [liquidaciones, setLiquidaciones] = useState([]);
@@ -24,22 +26,46 @@ export default function Liquidaciones() {
   const [q, setQ] = useState("");
 
   const cargar = async () => {
-    const u = await getDocs(collection(db, "usuarios"));
+    if (!userData) return;
+
+    let usuariosRef;
+    let liquidacionesRef;
+
+    if (userData?.rol === "superadmin") {
+      usuariosRef = collection(db, "usuarios");
+      liquidacionesRef = collection(db, "liquidaciones");
+    } else {
+      usuariosRef = query(
+        collection(db, "usuarios"),
+        where("empresaId", "==", userData?.empresaId),
+      );
+
+      liquidacionesRef = query(
+        collection(db, "liquidaciones"),
+        where("empresaId", "==", userData?.empresaId),
+      );
+    }
+
+    const u = await getDocs(usuariosRef);
     setUsuarios(u.docs.map((d) => ({ id: d.id, ...d.data() })));
 
-    const l = await getDocs(collection(db, "liquidaciones"));
+    const l = await getDocs(liquidacionesRef);
     setLiquidaciones(l.docs.map((d) => ({ id: d.id, ...d.data() })));
   };
 
   useEffect(() => {
-    cargar();
-  }, []);
+    if (userData) {
+      cargar();
+    }
+  }, [userData]);
 
   const visibles = useMemo(() => {
     const base = isAdmin
       ? liquidaciones
       : liquidaciones.filter((x) => x.userId === user?.uid);
+
     const qq = (q || "").toLowerCase();
+
     return base.filter((x) =>
       `${x.nombreArchivo || ""} ${x.userId || ""}`.toLowerCase().includes(qq),
     );
@@ -67,6 +93,7 @@ export default function Liquidaciones() {
       );
 
       const data = await response.json();
+
       if (!response.ok) {
         console.error("Cloudinary error:", data);
         return alert("Error al subir a Cloudinary");
@@ -77,6 +104,7 @@ export default function Liquidaciones() {
 
       await addDoc(collection(db, "liquidaciones"), {
         userId: usuarioLiquidacion,
+        empresaId: userData?.empresaId || "demo_empresa",
         nombreArchivo: fileToUpload.name,
         url,
         downloadUrl,
@@ -95,8 +123,10 @@ export default function Liquidaciones() {
 
   const eliminar = async (l) => {
     if (!isAdmin) return;
+
     const ok = window.confirm("¿Eliminar registro de liquidación?");
     if (!ok) return;
+
     await deleteDoc(doc(db, "liquidaciones", l.id));
     await cargar();
     alert("Eliminado ✅");
@@ -131,6 +161,7 @@ export default function Liquidaciones() {
                 accept=".pdf"
                 onChange={(e) => setFileToUpload(e.target.files?.[0] || null)}
               />
+
               <button className="btn btn-success w-100" onClick={subir}>
                 Subir
               </button>
@@ -177,6 +208,7 @@ export default function Liquidaciones() {
                             Ver
                           </a>
                         )}
+
                         {l.downloadUrl && (
                           <a
                             className="btn btn-sm btn-outline-success"
@@ -188,6 +220,7 @@ export default function Liquidaciones() {
                           </a>
                         )}
                       </td>
+
                       {isAdmin && (
                         <td>
                           <button
@@ -200,6 +233,7 @@ export default function Liquidaciones() {
                       )}
                     </tr>
                   ))}
+
                   {!visibles.length && (
                     <tr>
                       <td

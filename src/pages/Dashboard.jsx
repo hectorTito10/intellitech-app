@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { useAuth } from "../context/AuthContext";
 
@@ -68,15 +68,7 @@ export default function Dashboard() {
       </div>
 
       {/* CARDS */}
-      <div className="row g-4">
-        <div className="col-md-3">
-          <div className="card shadow-sm p-3 text-center border-0">
-            <div style={{ fontSize: "28px" }}>👥</div>
-            <div className="text-muted small">Usuarios</div>
-            <h2 className="fw-bold">{totalUsuarios}</h2>
-          </div>
-        </div>
-
+      <div className="row g-10">
         <div className="col-md-3">
           <div className="card shadow-sm p-3 text-center border-0">
             <div style={{ fontSize: "28px" }}>🌴</div>
@@ -90,6 +82,14 @@ export default function Dashboard() {
             <div style={{ fontSize: "28px" }}>✅</div>
             <div className="text-muted small">Vacaciones aprobadas</div>
             <h2 className="fw-bold text-success">{aprobadas}</h2>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card shadow-sm p-3 text-center border-0">
+            <div style={{ fontSize: "28px" }}>❌</div>
+            <div className="text-muted small">Vacaciones rechazadas</div>
+            <h2 className="fw-bold text-danger">{rechazadas}</h2>
           </div>
         </div>
 

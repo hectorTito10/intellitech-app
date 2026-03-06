@@ -1,0 +1,1 @@
+import{j as s}from"./index-CzXUG-I-.js";function e(){return s.jsxs("div",{className:"p-4",children:[s.jsx("h4",{children:"Configuración"}),s.jsx("p",{children:"Configuraciones del sistema."})]})}export{e as default};

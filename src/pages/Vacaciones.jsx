@@ -6,13 +6,15 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { useAuth } from "../context/AuthContext";
 
 export default function Vacaciones() {
   const { user, userData } = useAuth();
-  const isAdmin = userData?.rol === "admin";
+  const isAdmin = userData?.rol === "admin" || userData?.rol === "superadmin";
 
   const [vacaciones, setVacaciones] = useState([]);
   const [filtro, setFiltro] = useState("");
@@ -21,13 +23,28 @@ export default function Vacaciones() {
   const [fechaFin, setFechaFin] = useState("");
 
   const cargar = async () => {
-    const snap = await getDocs(collection(db, "vacaciones"));
+    if (!userData) return;
+
+    let qRef;
+
+    if (userData?.rol === "superadmin") {
+      qRef = collection(db, "vacaciones");
+    } else {
+      qRef = query(
+        collection(db, "vacaciones"),
+        where("empresaId", "==", userData?.empresaId),
+      );
+    }
+
+    const snap = await getDocs(qRef);
     setVacaciones(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   };
 
   useEffect(() => {
-    cargar();
-  }, []);
+    if (userData) {
+      cargar();
+    }
+  }, [userData]);
 
   const mesesTrabajados = () => {
     if (!userData?.fechaIngreso) return 0;
@@ -66,6 +83,7 @@ export default function Vacaciones() {
 
     await addDoc(collection(db, "vacaciones"), {
       userId: user.uid,
+      empresaId: userData?.empresaId || "demo_empresa",
       nombre: userData?.nombre || "",
       inicio: fechaInicio,
       fin: fechaFin,
@@ -87,9 +105,9 @@ export default function Vacaciones() {
       aprobadoPor: userData?.nombre || "",
     });
 
-    // descontar días al usuario
     const userRef = doc(db, "usuarios", v.userId);
     const snap = await getDoc(userRef);
+
     await updateDoc(userRef, {
       diasDescontados: (snap.data().diasDescontados || 0) + v.dias,
     });
@@ -112,6 +130,7 @@ export default function Vacaciones() {
       `¿Quitar de la lista la solicitud de ${v.nombre}?`,
     );
     if (!ok) return;
+
     await updateDoc(doc(db, "vacaciones", v.id), { archivado: true });
     await cargar();
   };
@@ -157,10 +176,6 @@ export default function Vacaciones() {
             <button className="btn btn-primary w-100" onClick={solicitar}>
               Solicitar
             </button>
-
-            <div className="alert alert-info mt-3 mb-0">
-              Pendientes visibles: <b>{pendientes}</b>
-            </div>
           </div>
         </div>
 
@@ -209,6 +224,7 @@ export default function Vacaciones() {
                           {v.estado}
                         </span>
                       </td>
+
                       {isAdmin && (
                         <td>
                           {v.estado === "Pendiente" ? (
@@ -227,6 +243,7 @@ export default function Vacaciones() {
                               </button>
                             </>
                           ) : null}
+
                           {v.estado !== "Pendiente" && (
                             <button
                               className="btn btn-sm btn-outline-secondary"
@@ -239,6 +256,7 @@ export default function Vacaciones() {
                       )}
                     </tr>
                   ))}
+
                   {!visibles.length && (
                     <tr>
                       <td

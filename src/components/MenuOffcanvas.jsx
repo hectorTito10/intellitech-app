@@ -29,12 +29,12 @@ function Item({ to, icon, title, desc, badge, onClose }) {
 export default function MenuOffcanvas({ open, onClose, badges = {} }) {
   const { userData } = useAuth();
   const isAdmin = userData?.rol === "admin";
+  const isSuperAdmin = userData?.rol === "superadmin";
 
   if (!open) return null;
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -46,7 +46,6 @@ export default function MenuOffcanvas({ open, onClose, badges = {} }) {
         }}
       />
 
-      {/* Drawer */}
       <div
         style={{
           position: "fixed",
@@ -61,7 +60,6 @@ export default function MenuOffcanvas({ open, onClose, badges = {} }) {
           flexDirection: "column",
         }}
       >
-        {/* Header */}
         <div
           className="px-3 py-3 border-bottom"
           style={{
@@ -108,11 +106,11 @@ export default function MenuOffcanvas({ open, onClose, badges = {} }) {
           </div>
         </div>
 
-        {/* Body */}
         <div className="p-3" style={{ overflowY: "auto" }}>
           <div className="text-uppercase small text-muted fw-semibold mb-2">
             Principal
           </div>
+
           <div className="d-grid gap-2">
             <Item
               to="/"
@@ -121,6 +119,7 @@ export default function MenuOffcanvas({ open, onClose, badges = {} }) {
               desc="Resumen y métricas."
               onClose={onClose}
             />
+
             <Item
               to="/vacaciones"
               icon="🌴"
@@ -131,6 +130,7 @@ export default function MenuOffcanvas({ open, onClose, badges = {} }) {
               }
               onClose={onClose}
             />
+
             <Item
               to="/liquidaciones"
               icon="📄"
@@ -138,14 +138,25 @@ export default function MenuOffcanvas({ open, onClose, badges = {} }) {
               desc="Ver y descargar PDFs."
               onClose={onClose}
             />
+
+            {isSuperAdmin && (
+              <Item
+                to="/empresas"
+                icon="🏢"
+                title="Empresas"
+                desc="Crear y administrar empresas."
+                onClose={onClose}
+              />
+            )}
           </div>
 
-          {isAdmin && (
+          {(isAdmin || isSuperAdmin) && (
             <>
               <hr className="my-3" />
               <div className="text-uppercase small text-muted fw-semibold mb-2">
                 Administración
               </div>
+
               <div className="d-grid gap-2">
                 <Item
                   to="/usuarios"

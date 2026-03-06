@@ -6,6 +6,8 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { db, secondaryAuth } from "../firebase/firebase";
@@ -13,7 +15,9 @@ import { useAuth } from "../context/AuthContext";
 
 export default function Usuarios() {
   const { userData, user } = useAuth();
-  const isAdmin = userData?.rol === "admin";
+  const isAdmin = userData?.rol === "admin" || userData?.rol === "superadmin";
+  const [empresas, setEmpresas] = useState([]);
+  const [empresaSeleccionada, setEmpresaSeleccionada] = useState("");
 
   const [usuarios, setUsuarios] = useState([]);
   const [q, setQ] = useState("");
@@ -31,13 +35,36 @@ export default function Usuarios() {
   const [edit, setEdit] = useState(null);
 
   const cargarUsuarios = async () => {
-    const snap = await getDocs(collection(db, "usuarios"));
+    if (!userData) return;
+
+    let qRef;
+
+    if (userData?.rol === "superadmin") {
+      qRef = collection(db, "usuarios");
+    } else {
+      qRef = query(
+        collection(db, "usuarios"),
+        where("empresaId", "==", userData?.empresaId),
+      );
+    }
+
+    const snap = await getDocs(qRef);
     setUsuarios(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   };
 
+  const cargarEmpresas = async () => {
+    if (userData?.rol !== "superadmin") return;
+
+    const snap = await getDocs(collection(db, "empresas"));
+    setEmpresas(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  };
+
   useEffect(() => {
-    if (isAdmin) cargarUsuarios();
-  }, [isAdmin]);
+    if (userData) {
+      cargarUsuarios();
+      cargarEmpresas();
+    }
+  }, [userData]);
 
   const filtrados = useMemo(() => {
     const qq = (q || "").toLowerCase();
@@ -49,11 +76,31 @@ export default function Usuarios() {
   }, [usuarios, q]);
 
   const crearUsuario = async () => {
-    if (!isAdmin) return alert("Solo admin");
-    if (!newNombre || !newCargo || !newEmail || !newPass || !newFechaIngreso)
-      return alert("Completa todo");
+    if (!newNombre || !newCargo || !newEmail || !newPass || !newFechaIngreso) {
+      return alert("Completa todos los campos");
+    }
 
     try {
+      let rolFinal = newRol;
+      let empresaIdFinal = null;
+
+      if (userData?.rol === "superadmin") {
+        if (newRol !== "superadmin" && !empresaSeleccionada) {
+          return alert("Selecciona una empresa");
+        }
+
+        empresaIdFinal = newRol === "superadmin" ? null : empresaSeleccionada;
+      } else if (userData?.rol === "admin") {
+        if (newRol === "superadmin") {
+          return alert("No puedes crear superadmin");
+        }
+
+        rolFinal = "usuario"; // o deja newRol si quieres permitir admin interno
+        empresaIdFinal = userData?.empresaId;
+      } else {
+        return alert("No autorizado");
+      }
+
       const cred = await createUserWithEmailAndPassword(
         secondaryAuth,
         newEmail,
@@ -64,13 +111,14 @@ export default function Usuarios() {
         nombre: newNombre,
         cargo: newCargo,
         email: newEmail,
-        rol: newRol,
+        rol: rolFinal,
+        empresaId: empresaIdFinal,
         fechaIngreso: newFechaIngreso,
         diasExtra: 0,
         diasDescontados: 0,
+        activo: true,
       });
 
-      // cerrar sesión secundaria (opcional)
       await signOut(secondaryAuth);
 
       setNewNombre("");
@@ -79,11 +127,13 @@ export default function Usuarios() {
       setNewPass("");
       setNewFechaIngreso("");
       setNewRol("usuario");
+      setEmpresaSeleccionada("");
+
       await cargarUsuarios();
-      alert("Usuario creado ✅");
-    } catch (e) {
-      console.error(e);
-      alert("Error: " + e.message);
+      alert("Usuario creado correctamente ✅");
+    } catch (error) {
+      console.error(error);
+      alert("Error al crear usuario: " + error.message);
     }
   };
 
@@ -149,43 +199,57 @@ export default function Usuarios() {
 
       <div className="row g-3">
         <div className="col-12">
-          <div className="card p-3 shadow-sm">
-            <div className="fw-bold mb-2">Crear usuario</div>
+          <div className="card p-3 shadow-sm mb-4">
+            <div className="fw-bold mb-3">Crear usuario</div>
+
             <div className="row g-2">
               <div className="col-md-3">
+                <label className="form-label small text-muted">Nombre</label>
                 <input
                   className="form-control"
-                  placeholder="Nombre"
                   value={newNombre}
                   onChange={(e) => setNewNombre(e.target.value)}
+                  placeholder="Nombre"
                 />
               </div>
+
               <div className="col-md-3">
+                <label className="form-label small text-muted">Cargo</label>
                 <input
                   className="form-control"
-                  placeholder="Cargo"
                   value={newCargo}
                   onChange={(e) => setNewCargo(e.target.value)}
+                  placeholder="Cargo"
                 />
               </div>
+
               <div className="col-md-3">
+                <label className="form-label small text-muted">Email</label>
                 <input
                   className="form-control"
-                  placeholder="Email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Email"
                 />
               </div>
+
               <div className="col-md-3">
+                <label className="form-label small text-muted">
+                  Contraseña
+                </label>
                 <input
                   type="password"
                   className="form-control"
-                  placeholder="Contraseña"
                   value={newPass}
                   onChange={(e) => setNewPass(e.target.value)}
+                  placeholder="Contraseña"
                 />
               </div>
+
               <div className="col-md-3">
+                <label className="form-label small text-muted">
+                  Fecha ingreso
+                </label>
                 <input
                   type="date"
                   className="form-control"
@@ -193,17 +257,43 @@ export default function Usuarios() {
                   onChange={(e) => setNewFechaIngreso(e.target.value)}
                 />
               </div>
+
               <div className="col-md-3">
+                <label className="form-label small text-muted">Rol</label>
                 <select
                   className="form-select"
                   value={newRol}
                   onChange={(e) => setNewRol(e.target.value)}
                 >
+                  {userData?.rol === "superadmin" && (
+                    <option value="superadmin">superadmin</option>
+                  )}
+                  {userData?.rol === "superadmin" && (
+                    <option value="admin">admin</option>
+                  )}
                   <option value="usuario">usuario</option>
-                  <option value="admin">admin</option>
                 </select>
               </div>
-              <div className="col-md-6">
+
+              {userData?.rol === "superadmin" && newRol !== "superadmin" && (
+                <div className="col-md-3">
+                  <label className="form-label small text-muted">Empresa</label>
+                  <select
+                    className="form-select"
+                    value={empresaSeleccionada}
+                    onChange={(e) => setEmpresaSeleccionada(e.target.value)}
+                  >
+                    <option value="">Seleccionar empresa</option>
+                    {empresas.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="col-md-3 d-flex align-items-end">
                 <button
                   className="btn btn-success w-100"
                   onClick={crearUsuario}
@@ -211,11 +301,6 @@ export default function Usuarios() {
                   Crear
                 </button>
               </div>
-            </div>
-
-            <div className="alert alert-warning mt-3 mb-0">
-              Nota: eliminar aquí borra el documento en Firestore. Para borrar
-              también de Firebase Auth se requiere Cloud Functions/Admin SDK.
             </div>
           </div>
         </div>

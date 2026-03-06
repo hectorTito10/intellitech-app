@@ -1,0 +1,1 @@
+import{j as e}from"./index-CzXUG-I-.js";function s(){return e.jsxs("div",{className:"p-4",children:[e.jsx("h4",{children:"Reportes"}),e.jsx("p",{children:"Sección de reportes."})]})}export{s as default};

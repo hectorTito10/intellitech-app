@@ -2,21 +2,17 @@ import React, { useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-
 import Topbar from "./components/Topbar";
 import MenuOffcanvas from "./components/MenuOffcanvas";
-
 import Login from "./pages/Login";
 
-// ✅ Lazy load pages (code-splitting)
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Usuarios = lazy(() => import("./pages/Usuarios"));
 const Vacaciones = lazy(() => import("./pages/Vacaciones"));
 const Liquidaciones = lazy(() => import("./pages/Liquidaciones"));
 const Reportes = lazy(() => import("./pages/Reportes"));
 const Settings = lazy(() => import("./pages/Settings"));
-// Si ya creaste Perfil, descomenta:
-// const Perfil = lazy(() => import("./pages/Perfil"));
+const Empresas = lazy(() => import("./pages/Empresas"));
 
 function Shell({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -24,13 +20,12 @@ function Shell({ children }) {
   return (
     <div className="d-flex">
       <MenuOffcanvas open={menuOpen} onClose={() => setMenuOpen(false)} />
-
       <div
         className="flex-grow-1"
         style={{ minHeight: "100vh", background: "#f6f7f9" }}
       >
         <Topbar onOpenMenu={() => setMenuOpen(true)} />
-        <div className="p-0">{children}</div>
+        {children}
       </div>
     </div>
   );
@@ -103,20 +98,44 @@ export default function App() {
             }
           />
 
-          {/* Si agregas Perfil:
           <Route
-            path="/perfil"
+            path="/reportes"
             element={
               <ProtectedRoute>
                 <Shell>
                   <Page>
-                    <Perfil />
+                    <Reportes />
                   </Page>
                 </Shell>
               </ProtectedRoute>
             }
           />
-          */}
+
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Shell>
+                  <Page>
+                    <Settings />
+                  </Page>
+                </Shell>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/empresas"
+            element={
+              <ProtectedRoute>
+                <Shell>
+                  <Page>
+                    <Empresas />
+                  </Page>
+                </Shell>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
