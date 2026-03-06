@@ -90,9 +90,7 @@ export default function Login() {
           {loading ? "Ingresando..." : "Ingresar"}
         </button>
 
-        <div className="text-center mt-4 small text-muted">
-          Intellitech Plataforma RRHH
-        </div>
+        <div className="text-center mt-4 small text-muted">Plataforma RRHH</div>
       </div>
 
       {/* animación */}

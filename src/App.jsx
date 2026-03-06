@@ -22,7 +22,12 @@ function Shell({ children }) {
       <MenuOffcanvas open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div
         className="flex-grow-1"
-        style={{ minHeight: "100vh", background: "#f6f7f9" }}
+        style={{
+          minHeight: "100vh",
+          background: "#f6f7f9",
+          width: "100%",
+          overflowX: "hidden",
+        }}
       >
         <Topbar onOpenMenu={() => setMenuOpen(true)} />
         {children}
